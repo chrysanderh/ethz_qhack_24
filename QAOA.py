@@ -67,6 +67,8 @@ def qaoa(G:Graph, shots:int=1000, layer_count:int=1, const=0, save_file=False):
         filename = now.strftime('data/%Y%m%d-%H%M%S-') + f'Q{qubit_count}L{layer_count}N{shots}' + ".csv"
         fp = open(filename, "w")
 
+    cudaq.set_target("nvidia") # activates the single-gpu backend
+    
     @cudaq.kernel
     def kernel_qaoa(edges_src: List[int], edges_tgt: List[int], qubit_count: int, layer_count: int, thetas: List[float]):
         """
@@ -145,3 +147,22 @@ def qaoa(G:Graph, shots:int=1000, layer_count:int=1, const=0, save_file=False):
     for edge in edges:
         obj += 0.5 * (2*(sol[edge[0]]==sol[edge[1]]) - 1)
     return const - obj, sol
+
+if __name__ == '__main__':
+    graph = [(16, 20), (16, 25), (16, 13), (20, 7), (20, 10), (18, 23), (18, 8), (18, 0), (23, 9), (23, 10), (7, 24), (7, 27), (15, 27), (15, 5), (15, 22), (27, 17), (6, 24), (6, 1), (6, 17), (24, 11), (12, 19), (12, 25), (12, 26), (19, 2), (19, 28), (3, 10), (3, 13), (3, 21), (13, 4), (25, 0), (14, 22), (14, 9), (14, 21), (22, 28), (9, 5), (8, 2), (8, 29), (1, 17), (1, 4), (2, 5), (0, 26), (26, 29), (29, 28), (4, 11), (11, 21)]
+    n_nodes = max(max(graph, key=lambda x: x[0])[0], max(graph, key=lambda x: x[1])[1]) + 1
+    print("Running normal QAOA...")
+    print("Number of nodes:", n_nodes)
+    G = Graph(v=list(range(n_nodes)), edges=graph)
+
+    start = time.time()
+    value, sol = qaoa(G, layer_count=2)
+    end = time.time()
+    
+    print("Time taken:", str(end - start))
+    
+    print(value)
+    cost = get_cost(sol, graph)
+    
+    print("Final solution:", sol)
+    print("Cost:", cost)

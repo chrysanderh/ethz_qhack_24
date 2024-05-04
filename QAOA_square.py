@@ -5,9 +5,11 @@ import numpy as np
 import json
 from utilities import *
 from QAOA import *
+import csv
+import os
+import sys
 
-
-def qaoa_square(G:Graph, depth:int=1, sub_size:int=10):
+def qaoa_square(G:Graph, depth:int=1, sub_size:int=10, partition_method:str='random'):
     '''
     data_path : where graph data saved
 
@@ -28,7 +30,7 @@ def qaoa_square(G:Graph, depth:int=1, sub_size:int=10):
     while G.n_v > sub_size:
         
         sols[level] = {}
-        H = G.graph_partition(n=sub_size,policy='random')
+        H = G.graph_partition(n=sub_size,policy=partition_method)
         
         obj = []
         sol = []
@@ -69,11 +71,51 @@ def qaoa_square(G:Graph, depth:int=1, sub_size:int=10):
 
 
 if __name__ == '__main__':
-    hex_graph = [(0,1), (0,2), (0,3), (0,4), (1,2), (1,4), (2,3), (2,4), (2,5), (3,5), (4,5)]
-    G = Graph(v=list(range(6)), edges=hex_graph)
+    if len(sys.argv) < 4:
+        print("Usage:", "./" + sys.argv[0], "filename", "n_nodes", "partition_size")
+        exit(1)
 
-    value, sols = qaoa_square(G, depth=2, sub_size=3)
-    #value, sols = qaoa(G, layer_count=2)
+    headers = ["nodes", "runtime", "partition_gurobi", "partition_dac", "cost_gurobi", "cost_dac", "dac_subgraph_size"]
+    # Check if the file exists
+    file_path = sys.argv[1]
+    # If the file doesn't exist, create it and add the headers
+    if not os.path.isfile(file_path):
+        with open(file_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(headers)
 
-    print(value)
-    print(sols)
+    n_nodes = int(sys.argv[2])
+    partition_size = int(sys.argv[3])
+
+    graph, edges = generate_regular_3_graph(n_nodes, seed=42)
+    gurobi_sol = max_cut_gurobi(graph)
+
+    G = Graph(v=list(range(n_nodes)), edges=edges)
+
+    start = time.time()
+    value, sols = qaoa_square(G, depth=2, sub_size=partition_size, partition_method='modularity')
+    end = time.time()
+    
+    results = {'nodes': n_nodes, 'dac_subgraph_size': partition_size}
+
+    runtime = end - start
+    results['runtime'] = runtime
+    if gurobi_sol is not None:
+        results['cost_gurobi'] = gurobi_sol[0]
+        results['partition_gurobi'] = gurobi_sol[1]
+
+    partition_dac = contract_solution(sols, sort=True)[0]['sol']
+    results['partition_dac'] = partition_dac
+
+    cost_dac = get_cost(partition_dac, edges)
+    results['cost_dac'] = cost_dac
+
+    results_list = [results[key] for key in headers]
+    with open(file_path, 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow(results_list)
+
+    print("== RESULTS ==")
+    for h in headers:
+        print("  " + str(h) + ": " + str(results[h]))
+

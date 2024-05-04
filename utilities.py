@@ -5,6 +5,7 @@ import numpy as np
 import math
 import networkx as nx
 from networkx.algorithms.community import greedy_modularity_communities
+from gurobipy import Model, GRB
 
 class Graph():
     '''
@@ -60,8 +61,9 @@ class Graph():
             G = nx.Graph()
             G.add_nodes_from(v)
             for x in self.e:
-                G.add_edge(x[0],x[1],weight=x[2])
-            c = greedy_modularity_communities(G,n_communities=n_sub)
+                w = 1 if len(x) < 3 else x[3]
+                G.add_edge(x[0],x[1],weight=w)
+            c = greedy_modularity_communities(G,cutoff=n_sub,best_n=n_sub)
             sub_list = [list(x) for x in c]
             for x in sub_list:
                 if len(x) > n:
@@ -76,6 +78,7 @@ class Graph():
                     H.append(Graph(v=x, adjoint=A))
         if policy == 'random':
             n_sub = math.ceil(self.n_v / n)
+            np.random.seed(42)
             np.random.shuffle(v)
             sub_list = [v[n*i:n*(i+1)] for i in range(n_sub)]
             for i in range(n_sub):
@@ -83,3 +86,85 @@ class Graph():
                 H.append(Graph(v=sub_list[i], adjoint=A))
         return H
 
+def flatten_2d_list(l):
+    flattened = []
+    for i in l:
+        for j in i:
+            flattened.append(j)
+    return flattened
+
+def contract_level(sols, sort = True):
+    """
+    Take a dictionary from a divide and conquer solution and contract the last level
+
+    Parameters:
+        sols: Dict{int: List[String]}
+    """
+    level = max(sols.keys())
+    merged_sol = []
+    for i, s in enumerate(sols[level - 1]['sol']):
+        # find index corresponding to this subgraph in the next level
+        idx = 0
+        for j, v in enumerate(sols[level]['v']):
+            if v == i:
+                idx = j
+                break
+        
+        for b in s:     
+            if sols[level]['sol'][idx] == '0':
+                merged_sol.append(b)
+            else:
+                merged_sol.append('0' if b == '1' else '1')
+
+    merged_sol = ''.join(merged_sol)
+    nodes = flatten_2d_list(sols[level - 1]['v'])
+    merged_sol_sorted = [-1 for _ in range(len(merged_sol))]
+    for n, p in zip(nodes, merged_sol):
+        merged_sol_sorted[n] = p
+    merged_sol_sorted = ''.join(merged_sol_sorted)
+    sol_dict = {i: sols[i] for i in range(level - 1)}
+    if sort:
+        sol_dict[level - 1] = {'sol': merged_sol_sorted, 'v': sorted(list(nodes))}
+    else:
+        sol_dict[level - 1] = {'sol': merged_sol, 'v': list(nodes)}
+    return sol_dict
+
+def contract_solution(sols, sort = True):
+    while len(sols) > 1:
+        sols = contract_level(sols, sort)
+    return sols
+
+def get_cost(x_vec, graph):
+    cost = 0
+    for edge in graph:
+        n1, n2 = edge
+        cost += int(x_vec[n1])*(1-int(x_vec[n2])) + int(x_vec[n2])*(1-int(x_vec[n1]))
+
+    return cost
+
+def max_cut_gurobi(graph):
+    model = Model("max_cut")
+    model.setParam('OutputFlag', 0)
+
+    # Variables: x[i] is 1 if node i is in one set of the cut, 0 otherwise
+    x = model.addVars(graph.nodes(), vtype=GRB.BINARY, name="x")
+
+    # Objective: Maximize the sum of edges between the sets
+    model.setObjective(sum(x[i] + x[j] - 2 * x[i] * x[j] for i, j in graph.edges()), GRB.MAXIMIZE)
+
+    # Optimize model
+    model.optimize()
+
+    if model.status == GRB.OPTIMAL:
+        print('Max-Cut Value:', int(model.objVal))
+        group1 = {i for i in graph.nodes() if x[i].X >= 0.5}
+        group2 = {i for i in graph.nodes() if x[i].X < 0.5}
+        return int(model.objVal), [group1, group2]
+    else:
+        print("No optimal solution found.")
+        return None
+
+def generate_regular_3_graph(n_nodes, seed):
+    G = nx.random_regular_graph(3, n_nodes, seed=seed)
+    edges = list(G.edges())
+    return G, edges
