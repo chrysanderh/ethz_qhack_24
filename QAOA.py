@@ -12,6 +12,10 @@ import collections
 import time
 from datetime import datetime
 
+import csv
+import os
+import sys
+
 def get_hamiltonian(edges):
     """
     Get the Hamiltonian mapping for an arbitrary graph
@@ -149,20 +153,49 @@ def qaoa(G:Graph, shots:int=1000, layer_count:int=1, const=0, save_file=False):
     return const - obj, sol
 
 if __name__ == '__main__':
-    graph = [(16, 20), (16, 25), (16, 13), (20, 7), (20, 10), (18, 23), (18, 8), (18, 0), (23, 9), (23, 10), (7, 24), (7, 27), (15, 27), (15, 5), (15, 22), (27, 17), (6, 24), (6, 1), (6, 17), (24, 11), (12, 19), (12, 25), (12, 26), (19, 2), (19, 28), (3, 10), (3, 13), (3, 21), (13, 4), (25, 0), (14, 22), (14, 9), (14, 21), (22, 28), (9, 5), (8, 2), (8, 29), (1, 17), (1, 4), (2, 5), (0, 26), (26, 29), (29, 28), (4, 11), (11, 21)]
-    n_nodes = max(max(graph, key=lambda x: x[0])[0], max(graph, key=lambda x: x[1])[1]) + 1
-    print("Running normal QAOA...")
-    print("Number of nodes:", n_nodes)
-    G = Graph(v=list(range(n_nodes)), edges=graph)
+    if len(sys.argv) < 4:
+        print("Usage:", "./" + sys.argv[0], "filename", "n_nodes", "num_layers")
+        exit(1)
+
+    headers = ["nodes", "runtime", "partition_gurobi", "partition_qaoa", "cost_gurobi", "cost_qaoa", "num_layers"]
+    # Check if the file exists
+    file_path = sys.argv[1]
+    # If the file doesn't exist, create it and add the headers
+    if not os.path.isfile(file_path):
+        with open(file_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(headers)
+
+    n_nodes = int(sys.argv[2])
+    num_layers = int(sys.argv[3])
+
+    graph, edges = generate_regular_3_graph(n_nodes, seed=42)
+    gurobi_sol = max_cut_gurobi(graph)
+
+    G = Graph(v=list(range(n_nodes)), edges=edges)
 
     start = time.time()
-    value, sol = qaoa(G, layer_count=2)
+    value, sol = qaoa(G, layer_count=num_layers)
     end = time.time()
     
-    print("Time taken:", str(end - start))
-    
-    print(value)
-    cost = get_cost(sol, graph)
-    
-    print("Final solution:", sol)
-    print("Cost:", cost)
+    results = {'nodes': n_nodes, 'num_layers': num_layers}
+
+    runtime = end - start
+    results['runtime'] = runtime
+    if gurobi_sol is not None:
+        results['cost_gurobi'] = gurobi_sol[0]
+        results['partition_gurobi'] = gurobi_sol[1]
+
+    results['partition_qaoa'] = sol
+
+    cost_qaoa = get_cost(sol, edges)
+    results['cost_qaoa'] = cost_qaoa
+
+    results_list = [results[key] for key in headers]
+    with open(file_path, 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow(results_list)
+
+    print("== RESULTS ==")
+    for h in headers:
+        print("  " + str(h) + ": " + str(results[h]))

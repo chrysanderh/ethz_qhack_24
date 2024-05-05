@@ -71,11 +71,11 @@ def qaoa_square(G:Graph, depth:int=1, sub_size:int=10, partition_method:str='ran
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 4:
-        print("Usage:", "./" + sys.argv[0], "filename", "n_nodes", "partition_size")
+    if len(sys.argv) < 5:
+        print("Usage:", "./" + sys.argv[0], "filename", "n_nodes", "partition_size", "num_layers")
         exit(1)
 
-    headers = ["nodes", "runtime", "partition_gurobi", "partition_dac", "cost_gurobi", "cost_dac", "dac_subgraph_size"]
+    headers = ["nodes", "runtime", "partition_gurobi", "partition_dac", "cost_gurobi", "cost_dac", "dac_subgraph_size", "num_layers"]
     # Check if the file exists
     file_path = sys.argv[1]
     # If the file doesn't exist, create it and add the headers
@@ -93,7 +93,8 @@ if __name__ == '__main__':
     G = Graph(v=list(range(n_nodes)), edges=edges)
 
     start = time.time()
-    value, sols = qaoa_square(G, depth=2, sub_size=partition_size, partition_method='modularity')
+    num_layers = int(sys.argv[4])
+    value, sols = qaoa_square(G, depth=num_layers, sub_size=partition_size, partition_method='modularity')
     end = time.time()
     
     results = {'nodes': n_nodes, 'dac_subgraph_size': partition_size}
@@ -109,6 +110,7 @@ if __name__ == '__main__':
 
     cost_dac = get_cost(partition_dac, edges)
     results['cost_dac'] = cost_dac
+    results['num_layers'] = num_layers
 
     results_list = [results[key] for key in headers]
     with open(file_path, 'a') as f:

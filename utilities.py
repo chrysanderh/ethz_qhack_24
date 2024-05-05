@@ -87,6 +87,14 @@ class Graph():
         return H
 
 def flatten_2d_list(l):
+    """
+    Take a 2D list and flatten it along the first dimension (stack second dimension horizontally)
+    
+    Parameters: List[List]
+
+    Returns:
+        List: flattened list
+    """
     flattened = []
     for i in l:
         for j in i:
@@ -98,7 +106,10 @@ def contract_level(sols, sort = True):
     Take a dictionary from a divide and conquer solution and contract the last level
 
     Parameters:
-        sols: Dict{int: List[String]}
+        sols: Dict{int: Dict{'sol': List[String], 'v': List[List[Int]]}} Output from qaoa_square
+
+    Returns:
+        sol_dict: Dict with one less entry than sols where the last level has been used to flip the partitions for the previous level
     """
     level = max(sols.keys())
     merged_sol = []
@@ -130,11 +141,30 @@ def contract_level(sols, sort = True):
     return sol_dict
 
 def contract_solution(sols, sort = True):
+    """
+    Iteratively contract levels until only one remains
+
+    Parameters:
+        sols: Dict{int: Dict{'sol': List[String], 'v': List[List[Int]]}} Output from qaoa_square
+    
+    Returns:
+        sols: Dict{0: Dict{'sol': String, 'v': List[Int]}
+    """
     while len(sols) > 1:
         sols = contract_level(sols, sort)
     return sols
 
 def get_cost(x_vec, graph):
+    """
+    Get the number of cut edges of a graph partition.
+
+    Parameters:
+        x_vec: List[Int], String Partition of the graph
+        graph: List[Tuple[Int, Int]] Edges of the graph
+
+    Returns:
+        cost: Int Number of cut edges
+    """
     cost = 0
     for edge in graph:
         n1, n2 = edge
@@ -143,6 +173,9 @@ def get_cost(x_vec, graph):
     return cost
 
 def max_cut_gurobi(graph):
+    """
+    Use Gurobi algorithm to solve the max-cut problem.
+    """
     model = Model("max_cut")
     model.setParam('OutputFlag', 0)
 
@@ -165,6 +198,9 @@ def max_cut_gurobi(graph):
         return None
 
 def generate_regular_3_graph(n_nodes, seed):
+    """
+    Generate a random regular-3 graph with the given number of nodes and fixed seed.
+    """
     G = nx.random_regular_graph(3, n_nodes, seed=seed)
     edges = list(G.edges())
     return G, edges

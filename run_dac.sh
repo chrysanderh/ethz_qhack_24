@@ -1,5 +1,8 @@
 #!/bin/bash
 
+for i in {12..18..2}; do
+    python QAOA_square.py results_dac.csv $((i*2)) $i
+done
 python QAOA_square.py results_dac.csv 24 12 &&
 python QAOA_square.py results_dac.csv 28 14 &&
 python QAOA_square.py results_dac.csv 32 16 &&
