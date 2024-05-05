@@ -6,7 +6,7 @@ from cudaq import spin
 
 from typing import List
 
-from utilities import *
+from  src.utilities import *
 import collections
 
 import time

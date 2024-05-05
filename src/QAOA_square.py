@@ -3,8 +3,8 @@
 
 import numpy as np
 import json
-from utilities import *
-from QAOA import *
+from src.utilities import *
+from src.QAOA import *
 import csv
 import os
 import sys
