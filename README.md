@@ -20,9 +20,13 @@ The repository is structured as follows:
 
 
 ## Challenge and solution overview
-The given instructions can be found in the following [pdf file](Other/ETHZ_QHack_2024_NVIDIA.pdf). We will introduce the main points here.
+The given instructions can be found in the following [pdf file](Other/ETH_QEC_HACKATHON_NVIDIA_CHALLENGE_v1.pdf). We will introduce the main points here.
 
-The Vehicle Routing Problem (VRP) is an NP-Hard combinatorial optimization problem that involves finding the best routes for a fleet of vehicles to deliver to customers ![VRP example](Other/VRP.jpeg). In the most straightforward setting, the goal is to minimize the total distance traveled by the cars. In some sense, the VRP is a generalization of the Traveling Salesman Problem (TSP). Interestingly, the VRP is a general problem that finds applications in many critical fields, such as supply chain management, health care, and the chip design industry. Consequently, finding efficient solutions to the VRP is of significant importance.
+The Vehicle Routing Problem (VRP) is an NP-Hard combinatorial optimization problem that involves finding the best routes for a fleet of vehicles to deliver to customers.
+
+![VRP example](Other/VRP.jpeg) 
+
+In the most straightforward setting, the goal is to minimize the total distance traveled by the cars. In some sense, the VRP is a generalization of the Traveling Salesman Problem (TSP). Interestingly, the VRP is a general problem that finds applications in many critical fields, such as supply chain management, health care, and the chip design industry. Consequently, finding efficient solutions to the VRP is of significant importance.
 
 The VRP can be solved using a hybrid classical-quantum approach called Quantum Approximate Optimization Algorithm (QAOA). The QAOA is a variational algorithm used to solve combinatorial optimization problems. The adiabatic theorem [[1]](https://doi.org/10.1007/BF01343193) guarantees its convergence for infinite quantum circuit depth. However, as circuit depth corresponds to computation time, the theorem does not imply that the QAOA provides a polynomial-time solution. Moreover, there is no proof that QAOA efficiently finds the optimal solution. Consequently, there is `no guarantee of quantum advantage`, and QAOA does not fall into the problems with known (exponential) quantum speedups, such as Shor's factoring or quantum simulation of quantum systems. However, finite-depth QAOA is still currently used as a heuristic algorithm to solve combinatorial optimization problems because, in some cases, it can be implemented using shallow circuits suitable for NISQ devices. 
 
@@ -36,6 +40,7 @@ The proposed challenge was translating the VRP to an instance of the Max-Cut pro
 
 As we need `n*(n-1)+1` qubits for this translation, the number of qubits needed to implement the VRP grows quadratically with the number of customers, and to solve relevant instances of the VRP, a large number of qubits is required. As the computational space grows exponentially with the number of qubits, the simulation of QAOA becomes increasingly tricky. Consequently, we decided to focus the project on scaling QAOA for the Max-Cut problem to as big graphs as possible using `distributed computing` and a `divide-and-conquer` approach [[5]](https://arxiv.org/pdf/2205.11762). To have consistent and comparable results to the literature, we focused on the Max-Cut of `3-regular` graphs where 2-layer QAOA is guaranteed to find a Max-Cut with a weight that is `>75%` of the optimal solution [[2]](https://arxiv.org/abs/2306.09198). During the 24 hours of "hacking," we had access to two NVIDIA A100 GPUs, allowing us to explore the scaling of the QAOA algorithm on large graphs.
 
+![3-Regular Graph](Other/3-Reg_graphs.png)
 
 The project was divided into the following steps:
 1. Implement a pipeline to generate random unweighted 3-regular graphs of increasing size and calculate their Max-Cut classically with `Gurobi`. 
